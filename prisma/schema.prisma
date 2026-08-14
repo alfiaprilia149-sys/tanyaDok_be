@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" 
+  url      = env("DATABASE_URL")
+}
+
+// USER & AUTH
+
+model User {
+  id        String   @id @default(cuid())
+  nama      String
+  email     String   @unique
+  password  String
+  role      Role
+  noHp      String?
+  alamat    String?
+  foto      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  dokter Dokter?
+
+  sesiKonsultasi SesiKonsultasi[] @relation("CustomerSesi")
+  pesanDikirim   PesanChat[]      @relation("PengirimPesan")
+
+  @@map("users")
+}
+
+// DOKTER & JADWAL
+
+model Dokter {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spesialisasi    String
+  noSip           String?  @unique
+  tarifKonsultasi Int
+  isActive        Boolean  @default(true)  // masih aktif bekerja di klinik (admin yang atur) atau tidak
+  statusOnline    Boolean  @default(false) // standby chat saat ini (real-time, diset dokter)
+  rating          Float?   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  jadwal         JadwalDokter[]
+  sesiKonsultasi SesiKonsultasi[]
+
+  @@map("dokters")
+}
+
+model JadwalDokter {
+  id         String   @id @default(cuid())
+  dokterId   String
+  dokter     Dokter   @relation(fields: [dokterId], references: [id], onDelete: Cascade)
+  tanggal    DateTime @db.Date
+  jamMulai   DateTime @db.Time
+  jamSelesai DateTime @db.Time
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  sesiKonsultasi SesiKonsultasi[] // daftar pasien yang booking di slot ini ("jadwal pasien" dokter)
+
+  @@unique([dokterId, tanggal, jamMulai])
+  @@map("jadwal_dokters")
+}
+
+// KONSULTASI & CHAT
+
+model SesiKonsultasi {
+  id              String               @id @default(cuid())
+  customerId      String
+  customer        User                 @relation("CustomerSesi", fields: [customerId], references: [id])
+  dokterId        String
+  dokter          Dokter               @relation(fields: [dokterId], references: [id])
+  jadwalId        String
+  jadwal          JadwalDokter         @relation(fields: [jadwalId], references: [id])
+  status          StatusSesiKonsultasi @default(MENUNGGU_PERSETUJUAN)
+  alasanPenolakan String?              // diisi dokter kalau status = DITOLAK
+  waktuDisetujui  DateTime?            // = waktu chat mulai (saat dokter approve)
+  waktuSelesai    DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  pesan      PesanChat[]
+  pembayaran Pembayaran? // dibuat setelah status SELESAI (pembayaran pasca-konsultasi)
+
+  @@index([customerId])
+  @@index([dokterId, status])
+  @@index([jadwalId])
+  @@map("sesi_konsultasis")
+}
+
+model PesanChat {
+  id         String         @id @default(cuid())
+  sesiId     String
+  sesi       SesiKonsultasi @relation(fields: [sesiId], references: [id], onDelete: Cascade)
+  pengirimId String
+  pengirim   User           @relation("PengirimPesan", fields: [pengirimId], references: [id])
+  isiPesan   String
+  tipe       TipePesan      @default(TEXT)
+  createdAt  DateTime       @default(now())
+
+  @@index([sesiId, createdAt])
+  @@map("pesan_chats")
+}
+
+// PEMBAYARAN (khusus konsultasi, pasca-sesi)
+
+model Pembayaran {
+  id         String           @id @default(cuid())
+  sesiId     String           @unique
+  sesi       SesiKonsultasi   @relation(fields: [sesiId], references: [id])
+  status     StatusPembayaran @default(PENDING)
+  jumlah     Int              // snapshot dari Dokter.tarifKonsultasi saat sesi SELESAI
+  metode     String?
+  waktuBayar DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@map("pembayarans")
+}
+
+
+// ENUM
+
+enum Role {
+  ADMIN
+  DOKTER
+  CUSTOMER
+}
+
+enum StatusSesiKonsultasi {
+  MENUNGGU_PERSETUJUAN // customer sudah booking jadwal, menunggu dokter approve
+  DITOLAK              // dokter menolak permintaan booking
+  DISETUJUI            // dokter approve, chat langsung berlangsung
+  SELESAI              // konsultasi selesai, siap ditagih pembayaran
+  DIBATALKAN           // dibatalkan customer sebelum disetujui
+}
+
+enum StatusPembayaran {
+  PENDING
+  BERHASIL
+  GAGAL
+  EXPIRED
+}
+
+enum TipePesan {
+  TEXT
+  IMAGE
+}
