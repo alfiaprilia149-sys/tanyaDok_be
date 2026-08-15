@@ -9,11 +9,35 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql" 
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
-// USER & AUTH
+enum Role {
+  ADMIN
+  DOKTER
+  CUSTOMER
+}
+
+enum StatusSesiKonsultasi {
+  MENUNGGU_PERSETUJUAN // customer sudah booking jadwal, menunggu dokter approve
+  DITOLAK              // dokter menolak permintaan booking
+  DISETUJUI            // dokter approve, chat langsung berlangsung
+  SELESAI              // konsultasi selesai, siap ditagih pembayaran
+  DIBATALKAN           // dibatalkan customer sebelum disetujui
+}
+
+enum StatusPembayaran {
+  PENDING
+  BERHASIL
+  GAGAL
+  EXPIRED
+}
+
+enum TipePesan {
+  TEXT
+  IMAGE
+}
 
 model User {
   id        String   @id @default(cuid())
@@ -34,8 +58,6 @@ model User {
 
   @@map("users")
 }
-
-// DOKTER & JADWAL
 
 model Dokter {
   id              String   @id @default(cuid())
@@ -71,8 +93,6 @@ model JadwalDokter {
   @@unique([dokterId, tanggal, jamMulai])
   @@map("jadwal_dokters")
 }
-
-// KONSULTASI & CHAT
 
 model SesiKonsultasi {
   id              String               @id @default(cuid())
@@ -112,8 +132,6 @@ model PesanChat {
   @@map("pesan_chats")
 }
 
-// PEMBAYARAN (khusus konsultasi, pasca-sesi)
-
 model Pembayaran {
   id         String           @id @default(cuid())
   sesiId     String           @unique
@@ -126,33 +144,4 @@ model Pembayaran {
   updatedAt  DateTime         @updatedAt
 
   @@map("pembayarans")
-}
-
-
-// ENUM
-
-enum Role {
-  ADMIN
-  DOKTER
-  CUSTOMER
-}
-
-enum StatusSesiKonsultasi {
-  MENUNGGU_PERSETUJUAN // customer sudah booking jadwal, menunggu dokter approve
-  DITOLAK              // dokter menolak permintaan booking
-  DISETUJUI            // dokter approve, chat langsung berlangsung
-  SELESAI              // konsultasi selesai, siap ditagih pembayaran
-  DIBATALKAN           // dibatalkan customer sebelum disetujui
-}
-
-enum StatusPembayaran {
-  PENDING
-  BERHASIL
-  GAGAL
-  EXPIRED
-}
-
-enum TipePesan {
-  TEXT
-  IMAGE
 }
