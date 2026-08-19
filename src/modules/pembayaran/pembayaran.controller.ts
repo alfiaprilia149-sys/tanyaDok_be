@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import type { JwtUser } from '../../common/decorators/current-user.decorator';
@@ -18,16 +18,29 @@ export class PembayaranController {
   constructor(private pembayaranService: PembayaranService) {}
 
   @Get('saya')
+  @ApiOperation({
+    summary: 'Riwayat pembayaran sendiri',
+    description: 'Semua tagihan Pembayaran milik customer yang login (dari sesi konsultasi yang sudah SELESAI), apapun statusnya.',
+  })
   findMyPembayaran(@CurrentUser() user: JwtUser) {
     return this.pembayaranService.findMyPembayaran(user.userId);
   }
 
   @Get(':id')
+  @ApiOperation({
+    summary: 'Detail satu tagihan pembayaran',
+  })
   findOne(@Param('id') id: string, @CurrentUser() user: JwtUser) {
     return this.pembayaranService.findOne(id, user.userId);
   }
 
   @Patch(':id/bayar')
+  @ApiOperation({
+    summary: 'Simulasi bayar tagihan',
+    description:
+      'Status langsung berubah PENDING -> BERHASIL begitu endpoint ini dipanggil, tanpa verifikasi apapun. ' +
+      'Body cuma butuh field metode (bebas, contoh: "Transfer Bank", "QRIS") sekadar dicatat.',
+  })
   bayar(
     @Param('id') id: string,
     @CurrentUser() user: JwtUser,
