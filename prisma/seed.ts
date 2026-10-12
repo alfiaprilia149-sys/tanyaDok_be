@@ -8,19 +8,12 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'admin1223';
 const SALT_ROUNDS = 10;
 
 async function main() {
-  const existingAdmin = await prisma.user.findUnique({
-    where: { email: ADMIN_EMAIL },
-  });
-
-  if (existingAdmin) {
-    console.log(`Admin (${ADMIN_EMAIL}) sudah ada, skip seeding.`);
-    return;
-  }
-
   const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS);
 
-  await prisma.user.create({ 
-    data: {
+  await prisma.user.upsert({
+    where: { email: ADMIN_EMAIL },
+    update: { password: hashedPassword }, // admin sudah ada: password disamakan lagi
+    create: {
       nama: 'Admin TanyaDok',
       email: ADMIN_EMAIL,
       password: hashedPassword,
@@ -28,10 +21,7 @@ async function main() {
     },
   });
 
-  console.log(`Akun admin berhasil dibuat: ${ADMIN_EMAIL}`);
-  console.log(
-    'PENTING: ganti password default ini setelah login pertama kali!',
-  );
+  console.log(`Akun admin siap dipakai: ${ADMIN_EMAIL}`);
 }
 
 main()
