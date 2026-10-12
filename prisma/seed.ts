@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL ?? 'admin@tanyadok.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'admin123';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? 'admin1223';
 const SALT_ROUNDS = 10;
 
 async function main() {
